@@ -75,6 +75,7 @@ Interact with these Azure DevOps services:
 - **wit_get_work_item_type**: Get a specific work item type.
 - **wit_get_query**: Get a query by its ID or path.
 - **wit_get_query_results_by_id**: Retrieve the results of a work item query given the query ID.
+- **wit_query_by_wiql**: Execute a WIQL (Work Item Query Language) query to retrieve work items based on custom criteria.
 - **wit_update_work_items_batch**: Update work items in batch.
 - **wit_work_items_link**: Link work items together in batch.
 - **wit_work_item_unlink**: Unlink one or many links from a work item.
@@ -94,7 +95,6 @@ Interact with these Azure DevOps services:
 - **repo_get_branch_by_name**: Get a branch by its name.
 - **repo_get_pull_request_by_id**: Get a pull request by its ID.
 - **repo_create_pull_request**: Create a new pull request.
-- **repo_create_branch**: Create a new branch in the repository.
 - **repo_update_pull_request_status**: Update the status of an existing pull request to active or abandoned.
 - **repo_update_pull_request**: Update various fields of an existing pull request (title, description, draft status, target branch).
 - **repo_update_pull_request_reviewers**: Add or remove reviewers for an existing pull request.
@@ -130,7 +130,6 @@ Interact with these Azure DevOps services:
 - **testplan_list_test_plans**: Retrieve a paginated list of test plans from an Azure DevOps project. Allows filtering for active plans and toggling detailed information.
 - **testplan_list_test_cases**: Get a list of test cases in the test plan.
 - **testplan_show_test_results_from_build_id**: Get a list of test results for a given project and build ID.
-- **testplan_create_test_suite**: Creates a new test suite in a test plan.
 
 ### 📖 Wiki
 

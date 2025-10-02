@@ -36,6 +36,7 @@ interface WorkItemTrackingApiMock {
   getWorkItemType: jest.Mock;
   getQuery: jest.Mock;
   queryById: jest.Mock;
+  queryByWiql: jest.Mock;
 }
 
 interface MockConnection {
@@ -75,6 +76,7 @@ describe("configureWorkItemTools", () => {
       getWorkItemType: jest.fn(),
       getQuery: jest.fn(),
       queryById: jest.fn(),
+      queryByWiql: jest.fn(),
     };
 
     mockConnection = {
@@ -2895,6 +2897,114 @@ describe("configureWorkItemTools", () => {
         expect(result.isError).toBe(true);
         expect(result.content[0].text).toBe("Work item update failed");
       });
+    });
+  });
+
+  describe("wit_query_by_wiql tool", () => {
+    it("should call WIQL query API with the correct parameters and return the expected result", async () => {
+      configureWorkItemTools(server, tokenProvider, connectionProvider, userAgentProvider);
+
+      const call = (server.tool as jest.Mock).mock.calls.find(([toolName]) => toolName === "wit_query_by_wiql");
+
+      if (!call) throw new Error("wit_query_by_wiql tool not registered");
+      const [, , , handler] = call;
+
+      const mockWiqlResults = {
+        queryType: "flat",
+        queryResultType: "workItem",
+        asOf: new Date(),
+        columns: [
+          { referenceName: "System.Id", name: "ID" },
+          { referenceName: "System.Title", name: "Title" },
+          { referenceName: "System.WorkItemType", name: "Work Item Type" }
+        ],
+        workItems: [
+          { id: 1, url: "https://dev.azure.com/contoso/_apis/wit/workItems/1" },
+          { id: 2, url: "https://dev.azure.com/contoso/_apis/wit/workItems/2" }
+        ]
+      };
+
+      (mockWorkItemTrackingApi.queryByWiql as jest.Mock).mockResolvedValue(mockWiqlResults);
+
+      const params = {
+        wiql: "SELECT [System.Id], [System.Title], [System.WorkItemType] FROM workitems WHERE [System.TeamProject] = 'Contoso' AND [System.State] = 'Active'",
+        project: "Contoso",
+        team: "DefaultTeam",
+        timePrecision: false,
+        top: 50
+      };
+
+      const result = await handler(params);
+
+      expect(mockWorkItemTrackingApi.queryByWiql).toHaveBeenCalledWith(
+        {
+          query: params.wiql
+        },
+        { project: params.project, team: params.team },
+        params.timePrecision,
+        params.top
+      );
+
+      expect(result.content[0].text).toBe(JSON.stringify(mockWiqlResults, null, 2));
+    });
+
+    it("should handle WIQL query without team parameter", async () => {
+      configureWorkItemTools(server, tokenProvider, connectionProvider, userAgentProvider);
+
+      const call = (server.tool as jest.Mock).mock.calls.find(([toolName]) => toolName === "wit_query_by_wiql");
+
+      if (!call) throw new Error("wit_query_by_wiql tool not registered");
+      const [, , , handler] = call;
+
+      const mockWiqlResults = {
+        queryType: "flat",
+        queryResultType: "workItem",
+        workItems: []
+      };
+
+      (mockWorkItemTrackingApi.queryByWiql as jest.Mock).mockResolvedValue(mockWiqlResults);
+
+      const params = {
+        wiql: "SELECT [System.Id] FROM workitems WHERE [System.TeamProject] = 'Contoso'",
+        project: "Contoso",
+        timePrecision: false,
+        top: 50
+      };
+
+      const result = await handler(params);
+
+      expect(mockWorkItemTrackingApi.queryByWiql).toHaveBeenCalledWith(
+        {
+          query: params.wiql
+        },
+        { project: params.project, team: undefined },
+        params.timePrecision,
+        params.top
+      );
+
+      expect(result.content[0].text).toBe(JSON.stringify(mockWiqlResults, null, 2));
+    });
+
+    it("should handle WIQL query API failure", async () => {
+      configureWorkItemTools(server, tokenProvider, connectionProvider, userAgentProvider);
+
+      const call = (server.tool as jest.Mock).mock.calls.find(([toolName]) => toolName === "wit_query_by_wiql");
+
+      if (!call) throw new Error("wit_query_by_wiql tool not registered");
+      const [, , , handler] = call;
+
+      (mockWorkItemTrackingApi.queryByWiql as jest.Mock).mockRejectedValue(new Error("WIQL query failed"));
+
+      const params = {
+        wiql: "INVALID WIQL QUERY",
+        project: "Contoso"
+      };
+
+      const result = await handler(params);
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("Error executing WIQL query");
+      expect(result.content[0].text).toContain("WIQL query failed");
     });
   });
 });

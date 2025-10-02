@@ -3,7 +3,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebApi } from "azure-devops-node-api";
-import { WorkItemExpand, WorkItemRelation } from "azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js";
+import { WorkItemExpand, WorkItemRelation, Wiql } from "azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js";
 import { QueryExpand } from "azure-devops-node-api/interfaces/WorkItemTrackingInterfaces.js";
 import { z } from "zod";
 import { batchApiVersion, markdownCommentsApiVersion, getEnumKeys, safeEnumConvert, encodeFormattedValue } from "../utils.js";
@@ -24,6 +24,7 @@ const WORKITEM_TOOLS = {
   get_work_item_type: "wit_get_work_item_type",
   get_query: "wit_get_query",
   get_query_results_by_id: "wit_get_query_results_by_id",
+  query_by_wiql: "wit_query_by_wiql",
   update_work_items_batch: "wit_update_work_items_batch",
   work_items_link: "wit_work_items_link",
   work_item_unlink: "wit_work_item_unlink",
@@ -647,6 +648,45 @@ function configureWorkItemTools(server: McpServer, tokenProvider: () => Promise<
       return {
         content: [{ type: "text", text: JSON.stringify(queryResult, null, 2) }],
       };
+    }
+  );
+
+  server.tool(
+    WORKITEM_TOOLS.query_by_wiql,
+    "Execute a WIQL (Work Item Query Language) query to retrieve work items based on custom criteria.",
+    {
+      wiql: z.string().describe("The WIQL query text to execute. Example: 'SELECT [System.Id], [System.Title] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] = 'Active'"),
+      project: z.string().optional().describe("The name or ID of the Azure DevOps project. If not provided, the default project will be used."),
+      team: z.string().optional().describe("The name or ID of the Azure DevOps team. If not provided, the default team will be used."),
+      timePrecision: z.boolean().default(false).describe("Whether to include time precision in the results. Defaults to false."),
+      top: z.number().default(50).describe("The maximum number of results to return. Defaults to 50."),
+    },
+    async ({ wiql, project, team, timePrecision, top }) => {
+      try {
+        const connection = await connectionProvider();
+        const workItemApi = await connection.getWorkItemTrackingApi();
+        const teamContext = { project, team };
+        
+        const wiqlQuery: Wiql = { query: wiql };
+        const queryResult = await workItemApi.queryByWiql(wiqlQuery, teamContext, timePrecision, top);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(queryResult, null, 2) }],
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+        
+        // Provide helpful error messages for common WIQL issues
+        let helpfulMessage = errorMessage;
+        if (errorMessage.includes("syntax") || errorMessage.includes("parsing")) {
+          helpfulMessage += "\n\nCommon WIQL syntax tips:\n- Use square brackets around field names: [System.Title]\n- Use single quotes for string values: 'Active'\n- Use @project for current project: [System.TeamProject] = @project";
+        }
+        
+        return {
+          content: [{ type: "text", text: `Error executing WIQL query: ${helpfulMessage}` }],
+          isError: true,
+        };
+      }
     }
   );
 
