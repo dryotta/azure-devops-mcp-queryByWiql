@@ -1,4 +1,6 @@
-# ⭐ Azure DevOps MCP Server
+# ⭐ Azure DevOps MCP Server - with QueryByWIQL support
+
+> 🚨 **Fork:** the fork added QueryByWIQL support to allow running custom queries in Azure DevOps - done with vibe coding :)
 
 Easily install the Azure DevOps MCP Server for VS Code or VS Code Insiders:
 
